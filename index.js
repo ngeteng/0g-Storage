@@ -218,21 +218,43 @@ async function checkNetworkSync() {
 }
 
 async function fetchRandomImage() {
-  try {
-    logger.loading('Fetching random image...');
+  const MAX_FETCH_RETRIES = 3;
+  const RETRY_DELAY_MS   = 5000; // 2 detik
+  let attempt = 1;
+
+  while (attempt <= MAX_FETCH_RETRIES) {
+    logger.loading(`Fetching random image (attempt ${attempt}/${MAX_FETCH_RETRIES})...`);
     const axiosInstance = createAxiosInstance();
     const source = IMAGE_SOURCES[Math.floor(Math.random() * IMAGE_SOURCES.length)];
-    const response = await axiosInstance.get(source.url, {
-      responseType: source.responseType,
-      maxRedirects: 5
-    });
-    logger.success('Image fetched successfully');
-    return response.data;
-  } catch (error) {
-    logger.error(`Error fetching image: ${error.message}`);
-    throw error;
+
+    try {
+      const response = await axiosInstance.get(source.url, {
+        responseType: source.responseType,
+        maxRedirects: 5
+      });
+      logger.success('Image fetched successfully');
+      return response.data;
+    } catch (error) {
+      const status = error.response?.status;
+      const url    = error.config?.url;
+      logger.error(
+        `Error fetching image: ${error.message}` +
+        `${status ? ` (HTTP ${status})` : ''}` +
+        `${url    ? ` from ${url}`    : ''}`
+      );
+      logger.debug(error.stack);
+
+      attempt++;
+      if (attempt <= MAX_FETCH_RETRIES) {
+        logger.loading(`Retrying in ${RETRY_DELAY_MS / 1000}s...`);
+        await new Promise(res => setTimeout(res, RETRY_DELAY_MS));
+      } else {
+        throw new Error(`Failed to fetch image after ${MAX_FETCH_RETRIES} attempts`);
+      }
+    }
   }
 }
+
 
 async function checkFileExists(fileHash) {
   try {
