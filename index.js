@@ -1,11 +1,11 @@
 require('dotenv').config();
 const { ethers } = require('ethers');
 const axios = require('axios');
-const readline = require('readline');
 const crypto = require('crypto');
 const fs = require('fs');
 const { HttpsProxyAgent } = require('https-proxy-agent');
 
+const uploadsPerWallet = 5;
 const colors = {
   reset: "\x1b[0m",
   cyan: "\x1b[36m",
@@ -199,11 +199,6 @@ function createAxiosInstance() {
 
   return axios.create(config);
 }
-
-const rl = readline.createInterface({
-  input: process.stdin,
-  output: process.stdout
-});
 
 function initializeWallet() {
   const privateKey = getNextPrivateKey();
@@ -441,14 +436,11 @@ async function main() {
     });
     console.log();
 
-    rl.question('How many files to upload per wallet? ', async (count) => {
-      count = parseInt(count);
-      if (isNaN(count) || count <= 0) {
-        logger.error('Invalid number. Please enter a number greater than 0.');
-        rl.close();
-        process.exit(1);
-        return;
-      }
+    const count = uploadsPerWallet;
+    if (count <= 0) {
+      logger.error('Nilai uploadsPerWallet harus > 0.');
+      process.exit(1);
+    }
 
       const totalUploads = count * privateKeys.length;
       logger.info(`Starting ${totalUploads} uploads (${count} per wallet)`);
@@ -491,26 +483,7 @@ async function main() {
       }
 
       logger.section('Upload Summary');
-      logger.summary(`Total wallets: ${privateKeys.length}`);
-      logger.summary(`Uploads per wallet: ${count}`);
-      logger.summary(`Total attempted: ${totalUploads}`);
-      if (successful > 0) logger.success(`Successful: ${successful}`);
-      if (failed > 0) logger.error(`Failed: ${failed}`);
-      logger.success('All operations completed');
-
-      rl.close();
-      process.exit(0);
-    });
-
-    rl.on('close', () => {
       logger.bye('Process completed ~ Bye bang !');
-    });
-
-  } catch (error) {
-    logger.critical(`Main process error: ${error.message}`);
-    rl.close();
-    process.exit(1);
-  }
-}
+      process.exit(0);
 
 main();
