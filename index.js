@@ -411,12 +411,14 @@ async function uploadToStorage(imageData, wallet, walletIndex) {
   }
 }
 
+
 async function main() {
   try {
     logger.banner();
     loadPrivateKeys();
     loadProxies();
 
+    // Cek koneksi dan network
     logger.loading('Checking network status...');
     const network = await provider.getNetwork();
     if (BigInt(network.chainId) !== BigInt(CHAIN_ID)) {
@@ -429,6 +431,7 @@ async function main() {
       throw new Error('Network is not synced');
     }
 
+    // Tampilkan daftar wallet
     console.log(colors.cyan + "Available wallets:" + colors.reset);
     privateKeys.forEach((key, index) => {
       const wallet = new ethers.Wallet(key);
@@ -436,54 +439,70 @@ async function main() {
     });
     console.log();
 
+    // Gunakan uploadsPerWallet tanpa prompt
     const count = uploadsPerWallet;
-    if (count <= 0) {
-      logger.error('Nilai uploadsPerWallet harus > 0.');
+    if (!Number.isInteger(count) || count <= 0) {
+      logger.error('Nilai uploadsPerWallet harus bilangan bulat > 0.');
       process.exit(1);
     }
 
-      const totalUploads = count * privateKeys.length;
-      logger.info(`Starting ${totalUploads} uploads (${count} per wallet)`);
+    const totalUploads = count * privateKeys.length;
+    logger.info(`Starting ${totalUploads} uploads (${count} per wallet)`);
 
-      const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
-      let successful = 0;
-      let failed = 0;
+    const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
+    let successful = 0;
+    let failed = 0;
 
-      for (let walletIndex = 0; walletIndex < privateKeys.length; walletIndex++) {
-        currentKeyIndex = walletIndex;
-        const wallet = initializeWallet();
-        logger.section(`Processing Wallet #${walletIndex + 1} [${wallet.address}]`);
+    // Loop per wallet
+    for (let walletIndex = 0; walletIndex < privateKeys.length; walletIndex++) {
+      currentKeyIndex = walletIndex;
+      const wallet = initializeWallet();
+      logger.section(`Processing Wallet #${walletIndex + 1} [${wallet.address}]`);
 
-        for (let i = 1; i <= count; i++) {
-          const uploadNumber = (walletIndex * count) + i;
-          logger.process(`Upload ${uploadNumber}/${totalUploads} (Wallet #${walletIndex + 1}, File #${i})`);
+      // Loop per upload untuk wallet ini
+      for (let i = 1; i <= count; i++) {
+        const uploadNumber = walletIndex * count + i;
+        logger.process(`Upload ${uploadNumber}/${totalUploads} (Wallet #${walletIndex + 1}, File #${i})`);
 
-          try {
-            const imageBuffer = await fetchRandomImage();
-            const imageData = await prepareImageData(imageBuffer);
-            await uploadToStorage(imageData, wallet, walletIndex);
-            successful++;
-            logger.success(`Upload ${uploadNumber} completed`);
-
-            if (uploadNumber < totalUploads) {
-              logger.loading('Waiting for next upload...');
-              await delay(3000);
-            }
-          } catch (error) {
-            failed++;
-            logger.error(`Upload ${uploadNumber} failed: ${error.message}`);
-            await delay(5000);
-          }
+        try {
+          const imageBuffer = await fetchRandomImage();
+          const imageData = await prepareImageData(imageBuffer);
+          await uploadToStorage(imageData, wallet, walletIndex);
+          successful++;
+          logger.success(`Upload ${uploadNumber} completed`);
+        } catch (error) {
+          failed++;
+          logger.error(`Upload ${uploadNumber} failed: ${error.message}`);
         }
 
-        if (walletIndex < privateKeys.length - 1) {
-          logger.loading('Switching to next wallet...');
-          await delay(10000);
+        // Delay antar upload, kecuali sudah terakhir
+        if (uploadNumber < totalUploads) {
+          logger.loading('Waiting for next upload...');
+          await delay(3000);
         }
       }
 
-      logger.section('Upload Summary');
-      logger.bye('Process completed ~ Bye bang !');
-      process.exit(0);
+      // Delay antar wallet, kecuali sudah wallet terakhir
+      if (walletIndex < privateKeys.length - 1) {
+        logger.loading('Switching to next wallet...');
+        await delay(10000);
+      }
+    }
+
+    logger.section('Upload Summary');
+    logger.summary(`Total wallets: ${privateKeys.length}`);
+    logger.summary(`Uploads per wallet: ${count}`);
+    logger.summary(`Total attempted: ${totalUploads}`);
+    if (successful > 0) logger.success(`Successful: ${successful}`);
+    if (failed > 0) logger.error(`Failed: ${failed}`);
+    logger.bye('Process completed ~ Bye bang !');
+
+    process.exit(0);
+
+  } catch (error) {
+    logger.critical(`Main process error: ${error.message}`);
+    process.exit(1);
+  }
+}
 
 main();
