@@ -219,7 +219,7 @@ async function checkNetworkSync() {
 
 async function fetchRandomImage() {
   const MAX_FETCH_RETRIES = 3;
-  const RETRY_DELAY_MS   = 5000; // 2 detik
+  const RETRY_DELAY_MS   = 15000; // 2 detik
   let attempt = 1;
 
   while (attempt <= MAX_FETCH_RETRIES) {
@@ -254,7 +254,6 @@ async function fetchRandomImage() {
     }
   }
 }
-
 
 async function checkFileExists(fileHash) {
   try {
