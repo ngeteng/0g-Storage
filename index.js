@@ -418,7 +418,6 @@ async function main() {
     loadPrivateKeys();
     loadProxies();
 
-    // Cek koneksi dan network
     logger.loading('Checking network status...');
     const network = await provider.getNetwork();
     if (BigInt(network.chainId) !== BigInt(CHAIN_ID)) {
@@ -431,7 +430,6 @@ async function main() {
       throw new Error('Network is not synced');
     }
 
-    // Tampilkan daftar wallet
     console.log(colors.cyan + "Available wallets:" + colors.reset);
     privateKeys.forEach((key, index) => {
       const wallet = new ethers.Wallet(key);
@@ -439,7 +437,6 @@ async function main() {
     });
     console.log();
 
-    // Gunakan uploadsPerWallet tanpa prompt
     const count = uploadsPerWallet;
     if (!Number.isInteger(count) || count <= 0) {
       logger.error('Nilai uploadsPerWallet harus bilangan bulat > 0.');
@@ -453,13 +450,11 @@ async function main() {
     let successful = 0;
     let failed = 0;
 
-    // Loop per wallet
     for (let walletIndex = 0; walletIndex < privateKeys.length; walletIndex++) {
       currentKeyIndex = walletIndex;
       const wallet = initializeWallet();
       logger.section(`Processing Wallet #${walletIndex + 1} [${wallet.address}]`);
 
-      // Loop per upload untuk wallet ini
       for (let i = 1; i <= count; i++) {
         const uploadNumber = walletIndex * count + i;
         logger.process(`Upload ${uploadNumber}/${totalUploads} (Wallet #${walletIndex + 1}, File #${i})`);
@@ -475,14 +470,12 @@ async function main() {
           logger.error(`Upload ${uploadNumber} failed: ${error.message}`);
         }
 
-        // Delay antar upload, kecuali sudah terakhir
         if (uploadNumber < totalUploads) {
           logger.loading('Waiting for next upload...');
           await delay(3000);
         }
       }
 
-      // Delay antar wallet, kecuali sudah wallet terakhir
       if (walletIndex < privateKeys.length - 1) {
         logger.loading('Switching to next wallet...');
         await delay(10000);
